@@ -25,14 +25,22 @@ $('#loginBtn').addEventListener('click',()=>{
     //       call showError('Username and password do not match.')
     //     otherwise, call openHomeScreen(doc)
     //   use .catch(err=>showError('ERROR: '+err)}) to show any other errors
-    fetch("/users/"+$('#loginUsername').value)
+
+    //modified to path to /authorization using post
+    var data = {
+        username: $('#loginUsername').value,
+        password: $('#loginPassword').value
+    };
+
+    fetch("/authorization", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: {"Content-Type" : "application/json"}
+    })
     .then(res => res.json())
     .then(doc => {
       if(doc.error) {
         showError(doc.error);
-      }
-      else if(doc.password !== $('#loginPassword').value) {
-        showError('Username and password do not match.');
       }
       else {
         openHomeScreen(doc);
@@ -102,7 +110,7 @@ $('#updateBtn').addEventListener('click',()=>{
     //     otherwise, if doc.ok,
     //       alert("Your name and email have been updated.");
     //   use .catch(err=>showError('ERROR: '+err)}) to show any other errors
-    fetch("/users/"+$('#username').innerText, {
+    fetch("/users/"+$('#username').innerText + "/" + authorizationToken, {
         method: 'PATCH',
         body: JSON.stringify(data),
         headers: {'Content-Type' : 'application/json'}
@@ -130,7 +138,7 @@ $('#deleteBtn').addEventListener('click',()=>{
     //     if doc.error, showError(doc.error)
     //     otherwise, openLoginScreen()
     //   use .catch(err=>showError('ERROR: '+err)}) to show any other errors
-    fetch("/users/"+('#username').innerText, {
+    fetch("/users/"+('#username').innerText + "/" + authorizationToken, {
         method: 'DELETE'
     })
     .then(res => res.json())
@@ -181,7 +189,10 @@ function resetInputs(){
     }
 }
 
+//modified to add authorization token
+var authorizationToken;
 function openHomeScreen(doc){
+    authorizationToken = doc.token;
     // hide other screens, clear inputs, clear error
     $('#loginScreen').classList.add('hidden');
     $('#registerScreen').classList.add('hidden');

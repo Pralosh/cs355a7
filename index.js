@@ -26,11 +26,23 @@ app.get('/users', (req, res) => {
 //     if record is found, send it
 //     otherwise, send {error:'Username not found.'}
 //   use .catch(error=>res.send({error})) to catch and send other errors
-app.get('/users/:username', (req, res) => {
+
+// modified to make it secure
+app.post('/authorization', (req, res) => {
     db.findOne({username: req.params.username})
     .then(doc => {
         if(doc) {
-            res.send(doc);
+            //updating the doc with token number 
+            if(bcrypt.compareSync(req.body.password, doc.password)) {
+                doc.token = "" + Math.random();
+                db.updateOne({username: req.body.username}, 
+                {$set: {token: doc.token}});
+                delete doc.password;
+                res.send(doc);
+            }
+            else {
+                res.send({error: "Login Failed!"});
+            }
         }
         else {
             res.send({error: 'Username not found.'});
@@ -48,8 +60,11 @@ app.get('/users/:username', (req, res) => {
 //       use insertOne to add document to database
 //       if all goes well, send returned document
 //   use .catch(error=>res.send({error})) to catch and send other errors
+
+//modified post to add hashed password and salt to the doc
 app.post('/users', (req, res) => {
     const user = req.body;
+
     if(!user.hasOwnProperty('username') || 
         !user.hasOwnProperty('password') ||
         !user.hasOwnProperty('email') || 
@@ -63,8 +78,13 @@ app.post('/users', (req, res) => {
                 res.send({error : 'Username already exists.'});
             }
             else {
+                user.password = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync());
+                user.token = "" + Math.random();
+
                 db.insertOne(user)
-                .then(doc => res.send(doc))
+                .then(doc => {
+                    delete doc.password;
+                    res.send(doc)})
                 .catch(error => res.send({error}));
             }
         })
@@ -81,7 +101,8 @@ app.post('/users', (req, res) => {
 //   use .catch(error=>res.send({error})) to catch and send other errors
 app.patch('/users/:username', (req, res) => {
    db.updateOne(
-    {username: req.params.username},
+    {username: req.params.username,
+    token: req.params.token},
     {$set: req.body})
     .then(result => {
         if(result == 0) {
@@ -102,7 +123,8 @@ app.patch('/users/:username', (req, res) => {
 //     otherwise, send {ok:true}
 //   use .catch(error=>res.send({error})) to catch and send other errors
 app.delete('/users/:username', (req, res) => {
-    db.deleteOne({username : {$exists : true}})
+    db.deleteOne({username : {$exists : true},
+    token: req.params.token})
     .then(result => {
         if(result == 0) {
             res.send({error : 'Something went wrong.'});
@@ -115,7 +137,9 @@ app.delete('/users/:username', (req, res) => {
 });
 
 // default route
-app.all('*',(req,res)=>{res.status(404).send('Invalid URL.')});
+app.all('*',(req,res) => {
+    res.status(404).send('Invalid URL.')});
 
 // start server
-app.listen(3000,()=>console.log("Server started on http://localhost:3000"));
+app.listen(3000,() => {
+    console.log("Server started on http://localhost:3000")});
