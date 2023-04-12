@@ -1,5 +1,6 @@
 const express = require('express');       // load express module
 const nedb = require("nedb-promises");    // load nedb module
+const bcrypt = require("bcrypt");
 
 const app = express();                    // init app
 const db = nedb.create('users.jsonl');    // init db
@@ -29,14 +30,16 @@ app.get('/users', (req, res) => {
 
 // modified to make it secure
 app.post('/authorization', (req, res) => {
-    db.findOne({username: req.params.username})
+    db.findOne({username: req.body.username})
     .then(doc => {
+        console.log(doc);
         if(doc) {
             //updating the doc with token number 
             if(bcrypt.compareSync(req.body.password, doc.password)) {
                 doc.token = "" + Math.random();
-                db.updateOne({username: req.body.username}, 
-                {$set: {token: doc.token}});
+                db.updateOne(
+                    {username: req.body.username},   
+                    {$set: {token: doc.token}});
                 delete doc.password;
                 res.send(doc);
             }
@@ -72,13 +75,13 @@ app.post('/users', (req, res) => {
         res.send({error : 'Missing fields.'});
     }
     else {
-        db.findOne({username : {$exists : true}})
+        db.findOne({username : user.username})
         .then(doc => {
             if(doc) {
                 res.send({error : 'Username already exists.'});
             }
             else {
-                user.password = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync());
+                user.password = bcrypt.hashSync(user.password, bcrypt.genSaltSync());
                 user.token = "" + Math.random();
 
                 db.insertOne(user)
@@ -99,7 +102,7 @@ app.post('/users', (req, res) => {
 //     if 0 records were updated, send {error:'Something went wrong.'}
 //     otherwise, send {ok:true}
 //   use .catch(error=>res.send({error})) to catch and send other errors
-app.patch('/users/:username', (req, res) => {
+app.patch('/users/:username/:token', (req, res) => {
    db.updateOne(
     {username: req.params.username,
     token: req.params.token},
@@ -122,9 +125,10 @@ app.patch('/users/:username', (req, res) => {
 //     if 0 records were deleted, send {error:'Something went wrong.'}
 //     otherwise, send {ok:true}
 //   use .catch(error=>res.send({error})) to catch and send other errors
-app.delete('/users/:username', (req, res) => {
-    db.deleteOne({username : {$exists : true},
-    token: req.params.token})
+app.delete('/users/:username/:token', (req, res) => {
+    db.deleteOne(
+        {username : {$exists : true},
+        token: req.params.token})
     .then(result => {
         if(result == 0) {
             res.send({error : 'Something went wrong.'});

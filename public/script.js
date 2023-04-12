@@ -138,7 +138,7 @@ $('#deleteBtn').addEventListener('click',()=>{
     //     if doc.error, showError(doc.error)
     //     otherwise, openLoginScreen()
     //   use .catch(err=>showError('ERROR: '+err)}) to show any other errors
-    fetch("/users/"+('#username').innerText + "/" + authorizationToken, {
+    fetch("/users/"+$('#username').innerText + "/" + authorizationToken, {
         method: 'DELETE'
     })
     .then(res => res.json())
